@@ -824,6 +824,9 @@ extension XLATensor {
     _ dtype: XLAScalarType.Type? = nil
   ) -> XLATensor {
     defer { _fixLifetime(a) }
+    if a.shape.count == 0 {
+      return a
+    }
     return dims.withArrayRef { dims in
       XLATensor(
         _handle: XLATensor_sum(a.handle, dims, keep_reduced_dimensions, dtype.xlaOptionalType))
