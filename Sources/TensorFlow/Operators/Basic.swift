@@ -1019,6 +1019,12 @@ extension Tensor where Scalar: TensorFlowFloatingPoint {
 // Indexing and Slicing
 //===------------------------------------------------------------------------------------------===//
 
+@usableFromInline
+@noDerivative
+internal func subArrays(_ a: [Int], _ b: [Int]) -> [Int] {
+  return zip(a, b).map { $0 - $1 }
+}
+
 // TODO: Negative indexing and strides syntax.
 
 extension Tensor {
@@ -1033,15 +1039,22 @@ extension Tensor {
     // TODO: Precondition `lowerBounds.count == upperBounds.count`,
     // preferably in graph.
     // TODO: Differentiating control flow is not supported yet, thus the thunks.
-    let lowerBoundsTensor = Tensor<Int32>({ lowerBounds.map(Int32.init) }(), on: device)
-    let upperBoundsTensor = Tensor<Int32>({ upperBounds.map(Int32.init) }(), on: device)
-    return slice(lowerBounds: lowerBoundsTensor, sizes: upperBoundsTensor - lowerBoundsTensor)
+    let size = subArrays(upperBounds, lowerBounds)
+    return withoutDerivative(at: size) { size in
+      _Raw.slice(self, begin: lowerBounds, size: size)
+    }
   }
 
   @inlinable
   @differentiable(wrt: self where Scalar: TensorFlowFloatingPoint)
   public func slice(lowerBounds: Tensor<Int32>, sizes: Tensor<Int32>) -> Tensor {
     return _Raw.slice(self, begin: lowerBounds, size: sizes)
+  }
+
+  @inlinable
+  @differentiable(wrt: self where Scalar: TensorFlowFloatingPoint)
+  public func slice(lowerBoundsArray: [Int], sizesArray: [Int]) -> Tensor {
+    return _Raw.slice(self, begin: lowerBoundsArray, size: sizesArray)
   }
 }
 
@@ -1062,6 +1075,23 @@ extension Tensor where Scalar: TensorFlowFloatingPoint {
         let paddings = Tensor<Int32>(
           concatenating: [beforePaddings, afterPaddings], alongAxis: 1)
         return _Raw.pad(v, paddings: paddings)
+      }
+    )
+  }
+
+  @inlinable
+  @derivative(of: slice(lowerBoundsArray:sizesArray:))
+  internal func _vjpSlice(
+    lowerBounds: [Int],
+    sizes: [Int]
+  ) -> (value: Tensor, pullback: (Tensor) -> Tensor) {
+    let value = slice(lowerBoundsArray: lowerBounds, sizesArray: sizes)
+    let afterPaddings = zip(zip(shape, value.shape).map { $0 - $1 }, lowerBounds).map { $0 - $1 }
+    return (
+      value,
+      { [after = afterPaddings] v in
+        let linearizedPaddings = zip(lowerBounds, after).flatMap { [$0, $1] }
+        return _Raw.pad(v, linearizedPaddings: linearizedPaddings)
       }
     )
   }
