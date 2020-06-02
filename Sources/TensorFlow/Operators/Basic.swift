@@ -124,9 +124,6 @@ extension Tensor {
   @differentiable(wrt: self where Scalar: TensorFlowFloatingPoint)
   public func split(sizes: Tensor<Int32>, alongAxis axis: Int = 0) -> [Tensor] {
     ensureValid(axis: axis)
-    precondition(
-      shapeTensor[axis] == sizes.sum(),
-      "The values in sizes must add up to the size of dimension axis.")
     return _Raw.splitV(
       value: self,
       sizeSplits: sizes,
