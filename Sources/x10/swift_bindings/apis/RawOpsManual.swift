@@ -3650,6 +3650,43 @@ public enum _RawXLA {
     return chunkHandles.map { Tensor(_xla: $0) }
   }
 
+  public static func splitV<
+    T: TensorFlowScalar
+  >(
+    value: Tensor<T>,
+    sizeSplits: [Int],
+    splitDim: Int
+  ) -> [Tensor<T>] {
+    let inferredIndices = sizeSplits.indices.filter { sizeSplits[$0] == -1 }
+    guard inferredIndices.count <= 1 else {
+      fatalError(
+        "Only one dimensions can have a value of -1. Second one found at dimension "
+          + String(inferredIndices[1])
+      )
+    }
+    let totalSplitSize = sizeSplits.filter { $0 != -1 }.reduce(0, +)
+    let canonicalSplitDim = canonicalDims([Int64(splitDim)], Int64(value.rank))
+      .first!
+    let splitDimSize = value.shape.dimensions[Int(canonicalSplitDim)]
+    guard
+      (inferredIndices.count == 0 && totalSplitSize == splitDimSize)
+        || (inferredIndices.count == 1 && totalSplitSize <= splitDimSize)
+    else {
+      fatalError(
+        "Determined shape must either match input shape along split_dim exactly if fully "
+          + "specified, or be less than the size of the input along split_dim if not fully "
+          + "specified. Got: \(totalSplitSize)"
+      )
+    }
+    var completeSizeSplits = sizeSplits.map { Int64($0) }
+    if inferredIndices.count == 1 {
+      completeSizeSplits[inferredIndices.first!] = Int64(splitDimSize) - Int64(totalSplitSize)
+    }
+    let chunkHandles = XLATensor.splitWithSizes(
+      value.xlaTensor, completeSizeSplits, Int64(splitDim))
+    return chunkHandles.map { Tensor(_xla: $0) }
+  }
+
   /// Computes square root of x element-wise.
   ///
   /// I.e., \\(y = \sqrt{x} = x^{1/2}\\).
