@@ -4373,6 +4373,15 @@ public enum _RawXLA {
     return Tensor(_xla: XLATensor.permute_value(x.xlaTensor, perm.scalars.map(Int64.init)))
   }
 
+  public static func transpose<
+    T: TensorFlowScalar
+  >(
+    _ x: Tensor<T>,
+    perm: [Int]
+  ) -> Tensor<T> {
+    return Tensor(_xla: XLATensor.permute_value(x.xlaTensor, perm.map(Int64.init)))
+  }
+
   /// Unpacks a given dimension of a rank-`R` tensor into `num` rank-`(R-1)` tensors.
   ///
   /// Unpacks `num` tensors from `value` by chipping it along the `axis` dimension.
