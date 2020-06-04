@@ -4391,6 +4391,27 @@ public enum _RawXLA {
       _xla: XLATensor.tile(input.xlaTensor, repetitions: multiples.scalars.map { Int64($0) }))
   }
 
+  public static func tile<
+    T: TensorFlowScalar
+  >(
+    _ input: Tensor<T>,
+    multiples: [Int]
+  ) -> Tensor<T> {
+    guard input.rank == multiples.count else {
+      fatalError(
+        "Expected multiples argument to be a vector of length \(input.rank) but got length "
+          + String(multiples.count)
+      )
+    }
+    for (index, multiply) in multiples.enumerated() {
+      guard multiply >= 0 else {
+        fatalError("Expected multiples[\(index)] >= 0, but got \(multiply)")
+      }
+    }
+    return Tensor(
+      _xla: XLATensor.tile(input.xlaTensor, repetitions: multiples.map { Int64($0) }))
+  }
+
   /// Transfer a tensor to a different device.
   public static func toDevice<T: TensorFlowScalar>(_ x: Tensor<T>, _ device: Device) -> Tensor<T> {
     Tensor(_xla: XLATensor.to(x.xlaTensor, device, T.self))

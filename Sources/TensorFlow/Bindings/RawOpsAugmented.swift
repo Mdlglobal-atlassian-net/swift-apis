@@ -93,6 +93,15 @@ extension _RawTFEager {
       numSplit: Int64(sizeSplits.count))
   }
 
+  public static func tile<
+    T: TensorFlowScalar
+  >(
+    _ input: Tensor<T>,
+    multiples: [Int]
+  ) -> Tensor<T> {
+    tile(input, multiples: Tensor<Int32>(multiples.map { Int32($0) }, on: .defaultTFEager))
+  }
+
   public static func transpose<
     T: TensorFlowScalar
   >(
@@ -299,6 +308,20 @@ extension _RawTFEager {
         return _RawXLA.splitV(value: value, sizeSplits: sizeSplits, splitDim: splitDim)
       case .TF_EAGER:
         return _RawTFEager.splitV(value: value, sizeSplits: sizeSplits, splitDim: splitDim)
+      }
+    }
+
+    public static func tile<
+      T: TensorFlowScalar
+    >(
+      _ input: Tensor<T>,
+      multiples: [Int]
+    ) -> Tensor<T> {
+      switch input.handle.backend {
+      case .XLA:
+        return _RawXLA.tile(input, multiples: multiples)
+      case .TF_EAGER:
+        return _RawTFEager.tile(input, multiples: multiples)
       }
     }
 
